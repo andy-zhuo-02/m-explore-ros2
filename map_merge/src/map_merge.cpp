@@ -41,7 +41,7 @@
 #include <map_merge/map_merge.h>
 #include <map_merge/ros1_names.hpp>
 #include <rcpputils/asserts.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 
 namespace map_merge
@@ -88,7 +88,7 @@ subscriptions_size_(0)
     std::chrono::milliseconds((uint16_t)(1000.0 / merging_rate_)),
     [this]() { mapMerging(); });
   // execute right away to simulate the ros1 first while loop on a thread
-  map_merging_timer_->execute_callback();
+  map_merging_timer_->execute_callback(nullptr);
 
   topic_subscribing_timer_ = this->create_wall_timer(
     std::chrono::milliseconds((uint16_t)(1000.0 / discovery_rate_)),
@@ -102,14 +102,14 @@ subscriptions_size_(0)
     r.sleep();
     i++;
   }
-  topic_subscribing_timer_->execute_callback(); 
+  topic_subscribing_timer_->execute_callback(nullptr); 
 
   if (!have_initial_poses_){
     pose_estimation_timer_ = this->create_wall_timer(
       std::chrono::milliseconds((uint16_t)(1000.0 / estimation_rate_)),
       [this]() { poseEstimation(); });
     // execute right away to simulate the ros1 first while loop on a thread
-    pose_estimation_timer_->execute_callback(); 
+    pose_estimation_timer_->execute_callback(nullptr); 
   }
 }
 
@@ -216,10 +216,43 @@ void MapMerge::mapMerging()
         // std::lock_guard<std::mutex> s_lock(subscription.mutex);
 
         grids.push_back(subscription.readonly_map);
-        transforms.push_back(subscription.initial_pose);
+        
+        // 计算从地图坐标系到世界坐标系的变换
+        geometry_msgs::msg::Transform transform = subscription.initial_pose;
+        
+        if (subscription.readonly_map) {
+          // 获取地图原点
+          double map_origin_x = subscription.readonly_map->info.origin.position.x;
+          double map_origin_y = subscription.readonly_map->info.origin.position.y;
+          
+          // 计算从地图坐标系到世界坐标系的变换
+          // 地图原点表示地图坐标系(0,0)在世界坐标系中的位置
+          // 所以从地图坐标系到世界坐标系的变换就是地图原点
+          transform.translation.x = map_origin_x;
+          transform.translation.y = map_origin_y;
+          
+          RCLCPP_INFO(logger_, "Robot initial pose: (%.3f, %.3f) -> Map transform: (%.3f, %.3f)", 
+                      subscription.initial_pose.translation.x, subscription.initial_pose.translation.y,
+                      transform.translation.x, transform.translation.y);
+        }
+        
+        transforms.push_back(transform);
+        
+        // 添加调试信息
+        if (subscription.readonly_map) {
+          RCLCPP_INFO(logger_, "Grid info: width=%d, height=%d, resolution=%.3f, origin=(%.3f,%.3f,%.3f)", 
+                      subscription.readonly_map->info.width,
+                      subscription.readonly_map->info.height,
+                      subscription.readonly_map->info.resolution,
+                      subscription.readonly_map->info.origin.position.x,
+                      subscription.readonly_map->info.origin.position.y,
+                      subscription.readonly_map->info.origin.position.z);
+        }
       }
     }
 
+    RCLCPP_INFO(logger_, "Number of grids to merge: %zu", grids.size());
+    RCLCPP_INFO(logger_, "Number of transforms: %zu", transforms.size());
 
     // we don't need to lock here, because when have_initial_poses_ is true we
     // will not run concurrently on the pipeline
@@ -239,6 +272,8 @@ void MapMerge::mapMerging()
   }
 
   RCLCPP_DEBUG(logger_, "all maps merged, publishing");
+  RCLCPP_INFO(logger_, "Merged map info: width=%d, height=%d, resolution=%.3f", 
+              merged_map->info.width, merged_map->info.height, merged_map->info.resolution);
   // RCLCPP_INFO(logger_, "all maps merged, publishing");
   auto now = this->now();
   merged_map->info.map_load_time = now;
@@ -427,6 +462,10 @@ bool MapMerge::getInitPose(const std::string& name,
                       pose.translation.z) &&
       this->get_parameter(ros1_names::append(merging_namespace, "init_pose_yaw"),
                       yaw);
+
+  // 添加调试信息
+  RCLCPP_INFO(logger_, "Robot %s initial pose: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", 
+              name.c_str(), pose.translation.x, pose.translation.y, pose.translation.z, yaw);
 
   tf2::Quaternion q;
   q.setEuler(0., 0., yaw);

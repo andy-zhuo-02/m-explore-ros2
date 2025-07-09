@@ -9,16 +9,30 @@ map_merge:
     robot_namespace: ""
     merged_map_topic: map
     world_frame: world
-    known_init_poses: true
+    known_init_poses: true  # 重新启用已知初始位置
     # known_init_poses: false
 
-    # Define here robots' positions in the map if known_init_poses is true
-    /robot1/map_merge/init_pose_x: 0.0
-    /robot1/map_merge/init_pose_y: 0.0
-    /robot1/map_merge/init_pose_z: 0.0
-    /robot1/map_merge/init_pose_yaw: 0.0
+    # 根据world文件中的机器人位置设置初始位置
+    # robot_0: pose [ -7 -7 0 45 ] 
+    /robot_0/map_merge/init_pose_x: -7.0
+    /robot_0/map_merge/init_pose_y: -7.0
+    /robot_0/map_merge/init_pose_z: 0.0
+    /robot_0/map_merge/init_pose_yaw: 0.785  # 45° = 0.785 radians
 
-    /robot2/map_merge/init_pose_x: -3.0
-    /robot2/map_merge/init_pose_y: 1.0
-    /robot2/map_merge/init_pose_z: 0.0
-    /robot2/map_merge/init_pose_yaw: 0.0
+    # robot_1: pose [ -5 -4 0 225 ] 
+    /robot_1/map_merge/init_pose_x: -5.0
+    /robot_1/map_merge/init_pose_y: -4.0
+    /robot_1/map_merge/init_pose_z: 0.0
+    /robot_1/map_merge/init_pose_yaw: 3.927  # 225° = 3.927 radians
+
+    # robot_2: pose [ -5 -6 0 225 ] 
+    /robot_2/map_merge/init_pose_x: -5.0
+    /robot_2/map_merge/init_pose_y: -6.0
+    /robot_2/map_merge/init_pose_z: 0.0
+    /robot_2/map_merge/init_pose_yaw: 3.927  # 225° = 3.927 radians
+
+    # robot_3: pose [ -3 -7 0 90 ] 
+    /robot_3/map_merge/init_pose_x: -3.0
+    /robot_3/map_merge/init_pose_y: -7.0
+    /robot_3/map_merge/init_pose_z: 0.0
+    /robot_3/map_merge/init_pose_yaw: 1.571  # 90° = 1.571 radians
